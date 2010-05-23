@@ -1,0 +1,45 @@
+README
+======
+
+What is jDbT ?
+--------------
+
+jDbT is a python-based tools that aims at easing the design and the deployment
+of Relational Databases.
+
+jDbT is able to build different kinds of representations of the database from
+a single YAML input file.
+
+jDbT can output in these formats :
+ * SQL (MySQL implementation)
+ * SQL (PostGreSQL implementation)
+ * Propel-compliant XML
+ * Physical Diagram (dot)
+ * Physical Diagram (png)
+
+The input file syntax tries to take the most from 
+Convention over Configuration principles. Thus, the input file stays small and
+you can focus on higher-level tasks.
+
+Roadmap
+-------
+
+Support for Entity-Relationship diagram YAML input.
+
+Support for Doctrine output.
+Support for Entity-Relationship diagram output.
+
+Complete refactoring.
+
+License
+-------
+
+jDbT was conceived and written by 
+Clément Delafargue <clement@delafargue.name>
+and Jonathan Winandy,
+with the help of Vincent Doba, Nelle Varoquaux and Benjamin Vialle.
+
+jDbT is released under the terms of the GNU General Public Licence v3
+(see COPYING)
+Additionnaly, if we meet some day and you think this Software is worth it, you can buy us a beer in return. (See http://en.wikipedia.org/wiki/Beerware)
+
