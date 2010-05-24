@@ -1,0 +1,17 @@
+base:
+  champ:
+  _attributes:
+    cluster:  a
+  champ_obligatoire: +
+  autre_champ: { type: timestamp }
+  
+autrebase:
+  _attributes:
+    cluster:  a
+  base_id:
+  champ: { required: true, index: unique }  
+
+autreautrebase:
+  _attributes:
+    cluster:  b
+  sf_guard_user_id:  {type: integer, foreignTable: sf_guard_user, foreignReference: id, required: true}

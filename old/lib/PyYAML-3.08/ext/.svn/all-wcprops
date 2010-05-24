@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/svn/!svn/ver/4/project/jDbT/vendor/PyYAML-3.08/ext
+END
+_yaml.pyx
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svn/!svn/ver/4/project/jDbT/vendor/PyYAML-3.08/ext/_yaml.pyx
+END
+_yaml.c
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svn/!svn/ver/4/project/jDbT/vendor/PyYAML-3.08/ext/_yaml.c
+END
+_yaml.h
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svn/!svn/ver/4/project/jDbT/vendor/PyYAML-3.08/ext/_yaml.h
+END
+_yaml.pxd
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svn/!svn/ver/4/project/jDbT/vendor/PyYAML-3.08/ext/_yaml.pxd
+END
