@@ -1,0 +1,36 @@
+---
+database:
+  user:
+    firstname: String(50)
+    lastname: String(50)
+    nickname: String(20)
+
+# Comments don't have to follow indentation
+  
+  group:
+    name: String(10)
+
+  address:
+    line1: String(100)
+    line2: String(100)
+    zip: String(5)
+    city: String(50)
+    country: String(50)
+
+  post:
+    title: String(100)
+    content: Text(Medium)
+    status:
+      - PUBLISHED
+      - HIDDEN
+
+---
+
+# One to One
+address <=> user
+
+# Many to One
+post -> user
+
+# Many to many
+user <-> group
