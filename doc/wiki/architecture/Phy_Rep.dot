@@ -1,0 +1,42 @@
+digraph ER_Rep {
+    graph [rankdir = "RL"];
+    fontname = "Bitstream Vera Sans"
+    fontsize = 8
+
+    node [
+        fontname = "Bitstream Vera Sans"
+        fontsize = 8
+        shape = "record"
+    ]
+
+    edge [
+        fontname = "Bitstream Vera Sans"
+        fontsize = 8
+    ]
+    
+    PhyDiagram[
+        label="PhyDiagram|\
+# tables : Table[]\l|\
++ __init__()\l\
++ addTable(Table)\l\
++ addConstraint(Constraint)\l"
+    ]
+    
+    Table[
+        label="Table|\
+# name : String\l\
+# fields : Field[]\l|\
++ __init__(name)\l\
++ addField(Field)\l"
+    ]
+    
+    Field[
+        label="Field|\
+# name : String\l\
+# attributes : Dict\l|\
++ __init__(name, attributes)\l"
+    ]
+
+
+    Field -> Table -> PhyDiagram [arrowhead=diamond, headport=e, tailport=w]
+}
