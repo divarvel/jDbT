@@ -49,8 +49,8 @@ graph ER {
         fillcolor="darkseagreen1"
     ]
     
-    Character -- isWarrior [label="0,1\n isCharacter"]
-    isWarrior -- Warrior [label="1,1\n isWarrior"]
+    Character -- isWarrior [label="0,1\n isWarrior"]
+    isWarrior -- Warrior [label="1,1\n isCharacter"]
     
     
     
@@ -60,8 +60,8 @@ graph ER {
         fillcolor="darkseagreen1"
     ]
     
-    Character -- hasItems [label="0,N\n ownedBy"]
-    hasItems -- Item [label="1,1\n hasItems"]
+    Character -- hasItems [label="0,N\n hasItems"]
+    hasItems -- Item [label="1,1\n ownedBy"]
     
     
     
@@ -71,8 +71,8 @@ graph ER {
         fillcolor="darkseagreen1"
     ]
     
-    Character -- hasPets [label="0,N\n ownedBy"]
-    hasPets -- Pet [label="0,1\n hasPets"]
+    Character -- hasPets [label="0,N\n hasPets"]
+    hasPets -- Pet [label="0,1\n ownedBy"]
     
     
     
@@ -82,6 +82,6 @@ graph ER {
         fillcolor="darkseagreen1"
     ]
     
-    Character -- belongsTo [label="0,N\n hasMembers"]
-    belongsTo -- Group [label="0,N\n belongsTo"]
+    Character -- belongsTo [label="0,N\n belongsTo"]
+    belongsTo -- Group [label="0,N\n hasMembers"]
 }
