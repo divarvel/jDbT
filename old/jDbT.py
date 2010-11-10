@@ -468,7 +468,7 @@ if __name__ == '__main__':
   if (options.png_file or options.graphviz_file):
     options.graphviz_file = not options.graphviz_file and ".tmp.dot~" or options.graphviz_file
     file = open(options.graphviz_file, "w")
-    file.write(database.render_graphviz())
+    file.write(database.render_graphviz().encode('utf-8'))
     file.close()
     
     if options.png_file:
