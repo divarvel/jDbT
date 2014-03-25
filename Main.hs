@@ -20,6 +20,9 @@ data Table = Table T.Text [Field] [Constraint] deriving (Show)
 
 data Field = Field T.Text BS.ByteString Bool (Maybe BS.ByteString) [Constraint] deriving (Show)
 
+--------------------------------------------------------------------------------
+-- YAML to data
+--
 extractTypes :: YamlValue -> Either String [Type]
 extractTypes (Mapping vs _) = let
     ts = (fmap (uncurry extractType) vs :: [Either String Type])
@@ -76,6 +79,10 @@ extractConstraint :: YamlValue -> Either String Constraint
 extractConstraint _ = Left "todo"
 
 
+
+--------------------------------------------------------------------------------
+-- Data to SQL
+--
 typeToSQL :: Type -> BS.ByteString
 typeToSQL (Tb t) = tableToSQL t
 typeToSQL (En e) = enumToSQL e
