@@ -2,6 +2,7 @@
 
 import System.Environment (getArgs)
 import Text.Libyaml (Tag, Tag(..))
+import Data.Maybe (mapMaybe)
 import Data.Yaml.Parser (YamlValue, YamlValue(..), readYamlFile)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -129,9 +130,9 @@ fieldConstraintToSQL (Other t) = "check " <> t
 --
 dataToDot :: [Type] -> BS.ByteString
 dataToDot ts = let
-    prefix = "digraph G {\n graph [ rankdir =\"BT\" ]"
+    prefix = "digraph G {\n graph [ rankdir =\"TB\" ]"
     suffix = "\n}\n\n"
-    in prefix <> foldMap typeToDot ts <> suffix
+    in prefix <> foldMap typeToDot ts <> dataDepsToDot ts <> suffix
 
 typeToDot :: Type -> BS.ByteString
 typeToDot (Tb t) = tableToDot t
@@ -154,7 +155,7 @@ enumToDot (DbEnum n vs) = entityToDot n $ foldMap enumValueToDot vs
         enumValueToDot = dotLine "LEFT" "#CCCCFF"
 
 tableToDot :: Table -> BS.ByteString
-tableToDot (Table n fs cs) = entityToDot n $ foldMap fieldToDot fs
+tableToDot (Table n fs _) = entityToDot n $ foldMap fieldToDot fs
 
 fieldToDot :: Field -> BS.ByteString
 fieldToDot (Field n t _ cs)
@@ -167,6 +168,17 @@ fieldToDot (Field n t _ cs)
         isFk (Fk _ _) = True
         isFk _        = False
         content = TE.encodeUtf8 n <> ": " <> t
+
+dataDepsToDot :: [Type] -> BS.ByteString
+dataDepsToDot = foldMap (uncurry depToDot) . concatMap entityDeps
+    where
+        entityDeps (Tb t) = tableDeps t
+        entityDeps (En _) = []
+        tableDeps (Table n fs _) = concatMap (fieldToDeps n) fs
+        fieldToDeps n (Field _ _ _ cs) = mapMaybe (constraintToDep n) cs
+        constraintToDep n1 (Fk n2 _) = Just (n1, n2)
+        constraintToDep _   _        = Nothing
+        depToDot a b = TE.encodeUtf8 $ a <> " -> " <> b <> "\n"
 
 
 main :: IO ()
