@@ -10,15 +10,15 @@ import Data.Monoid ((<>))
 import Data.Foldable
 
 
+type Constraint = BS.ByteString
+
 data Type = Tb Table | En DbEnum
 
 data DbEnum = DbEnum T.Text [BS.ByteString]
 
 data Table = Table T.Text [Field] [Constraint] deriving (Show)
 
-data Field = Field T.Text BS.ByteString Bool (Maybe BS.ByteString) deriving (Show)
-
-data Constraint = Constraint (Maybe T.Text) deriving (Show)
+data Field = Field T.Text BS.ByteString Bool (Maybe BS.ByteString) [Constraint] deriving (Show)
 
 extractTypes :: YamlValue -> Either String [Type]
 extractTypes (Mapping vs _) = let
@@ -54,7 +54,19 @@ extractField name (Sequence _ _) = Left $ "invalid value for field " <> T.unpack
 extractField name (Alias _ ) = Left $ "invalid value for field " <> T.unpack name <> ": alias"
 
 extractSimpleField :: T.Text -> BS.ByteString -> Tag -> Either String Field
-extractSimpleField name bs _ = Right $ Field name bs False Nothing
+extractSimpleField name bs _ =
+    if "_id" `T.isSuffixOf` name
+    then
+        extractFkField (T.take (T.length name - 3) name) bs
+    else
+        Right $ Field name bs False Nothing []
+
+extractFkField :: T.Text -> BS.ByteString -> Either String Field
+extractFkField table_name bs = let
+    field_name = table_name <> "_id"
+    cst = TE.encodeUtf8 $ "references " <> table_name <> "(" <> field_name <> ")"
+    nu = bs == "null"
+    in Right $ Field field_name "uuid" nu Nothing [cst]
 
 extractComplexField :: T.Text -> [(T.Text, YamlValue)] -> Either String Field
 extractComplexField _ _ = Left "todo"
@@ -87,11 +99,11 @@ tableToSQL (Table n fs _) = let
     in prefix <> (BS.intercalate ",\n" $ fmap ("    " <>) lns) <> suffix
 
 fieldToSQL :: Field -> BS.ByteString
-fieldToSQL (Field n t nu d) = let
+fieldToSQL (Field n t nu d cst) = let
     nbs = TE.encodeUtf8 n
-    nn = if nu then "null" else "not null"
+    nn = if nu then "" else "not null"
     df = maybe "" ("default " <>) d
-    in BS.intercalate " " $ filter (/= "") [nbs, t, nn, df]
+    in BS.intercalate " " $ filter (/= "") ([nbs, t, nn, df] ++ cst)
 
 
 main :: IO ()

@@ -6,6 +6,7 @@ user:
   firstname: text
   lastname: text
   nickname: text
+  group_id: null
 
 group:
   name: text
