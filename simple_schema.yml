@@ -1,0 +1,22 @@
+status:
+  - Test
+  - Prod
+
+user:
+  firstname: text
+  lastname: text
+  nickname: text
+
+group:
+  name: text
+
+address:
+  line1: text
+  line2: text
+  zip: text
+  city: text
+  country: text
+
+post:
+  title: text
+  content: text
