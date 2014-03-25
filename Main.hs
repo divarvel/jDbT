@@ -81,6 +81,9 @@ extractComplexField _ _ = Left "todo"
 --------------------------------------------------------------------------------
 -- Data to SQL
 --
+dataToSQL :: [Type] -> BS.ByteString
+dataToSQL = foldMap typeToSQL
+
 typeToSQL :: Type -> BS.ByteString
 typeToSQL (Tb t) = tableToSQL t
 typeToSQL (En e) = enumToSQL e
@@ -98,9 +101,9 @@ tableToSQL :: Table -> BS.ByteString
 tableToSQL (Table n fs cs) = let
     nbs = TE.encodeUtf8 n
     prefix = "create table " <> nbs <> " (\n"
-    lines = fmap fieldToSQL fs ++ fmap tableConstraintToSQL cs
+    lns = fmap fieldToSQL fs ++ fmap tableConstraintToSQL cs
     suffix = "\n);\n\n"
-    in prefix <> (BS.intercalate ",\n" $ fmap ("    " <>) lines) <> suffix
+    in prefix <> (BS.intercalate ",\n" $ fmap ("    " <>) lns) <> suffix
 
 tableConstraintToSQL :: TableConstraint -> BS.ByteString
 tableConstraintToSQL (TableConstraint fs Pk) = TE.encodeUtf8 $ "primary key ("<> T.intercalate ", " fs <>")"
@@ -121,6 +124,50 @@ fieldConstraintToSQL (Fk table field)  = TE.encodeUtf8 $ "references " <> table 
 fieldConstraintToSQL Unique = "unique"
 fieldConstraintToSQL (Other t) = "check " <> t
 
+--------------------------------------------------------------------------------
+-- Data to Dot
+--
+dataToDot :: [Type] -> BS.ByteString
+dataToDot ts = let
+    prefix = "digraph G {\n graph [ rankdir =\"BT\" ]"
+    suffix = "\n}\n\n"
+    in prefix <> foldMap typeToDot ts <> suffix
+
+typeToDot :: Type -> BS.ByteString
+typeToDot (Tb t) = tableToDot t
+typeToDot (En e) = enumToDot e
+
+entityToDot :: T.Text -> BS.ByteString -> BS.ByteString
+entityToDot name content = let
+    prefix = TE.encodeUtf8 $ name <> " [ label=<<TABLE BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\" WIDTH=\"100\">\n"
+    header = dotLine "LEFT" "#BBBBBB" $ TE.encodeUtf8 name
+    suffix = "</TABLE>> shape=\"plaintext\" ];\n\n"
+    in prefix <> header <> content <> suffix
+
+dotLine :: BS.ByteString -> BS.ByteString -> BS.ByteString -> BS.ByteString
+dotLine align color name = "<TR><TD ALIGN=\"" <> align <>"\" BGCOLOR=\"" <> color <> "\" WIDTH=\"100\">" <> name <> "</TD></TR>"
+
+
+enumToDot :: DbEnum -> BS.ByteString
+enumToDot (DbEnum n vs) = entityToDot n $ foldMap enumValueToDot vs
+    where
+        enumValueToDot = dotLine "LEFT" "#CCCCFF"
+
+tableToDot :: Table -> BS.ByteString
+tableToDot (Table n fs cs) = entityToDot n $ foldMap fieldToDot fs
+
+fieldToDot :: Field -> BS.ByteString
+fieldToDot (Field n t _ cs)
+    | any isPk cs = dotLine "LEFT" "#FFCCCC" content
+    | any isFk cs = dotLine "LEFT" "#CCFFCC" content
+    | otherwise = dotLine "LEFT" "#FFFFFF" content
+    where
+        isPk Pk = True
+        isPk _  = False
+        isFk (Fk _ _) = True
+        isFk _        = False
+        content = TE.encodeUtf8 n <> ": " <> t
+
 
 main :: IO ()
 main = do
@@ -128,5 +175,7 @@ main = do
     yml <- readYamlFile $ head args
     case extractTypes yml of
         Left err -> putStrLn $ "error: " ++ err
-        Right ts -> BS.putStr $ foldMap typeToSQL ts
+        Right ts -> BS.putStr $ case args of
+            [_, "dot"] -> dataToDot ts
+            _ -> dataToSQL ts
 
