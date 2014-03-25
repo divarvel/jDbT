@@ -7,18 +7,26 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString as BS
 import Data.Monoid ((<>))
-import Data.Foldable
+import Data.Foldable (foldMap)
 
 
-type Constraint = BS.ByteString
+data FieldConstraint = NotNull | Pk | Fk T.Text T.Text | Unique | Other BS.ByteString deriving (Show)
 
-data Type = Tb Table | En DbEnum
+data TableConstraint = TableConstraint [T.Text] FieldConstraint deriving (Show)
 
-data DbEnum = DbEnum T.Text [BS.ByteString]
+data Type = Tb Table | En DbEnum deriving (Show)
 
-data Table = Table T.Text [Field] [Constraint] deriving (Show)
+data DbEnum = DbEnum T.Text [BS.ByteString] deriving (Show)
 
-data Field = Field T.Text BS.ByteString Bool (Maybe BS.ByteString) [Constraint] deriving (Show)
+data Table = Table T.Text [Field] [TableConstraint] deriving (Show)
+
+data Field = Field T.Text BS.ByteString (Maybe BS.ByteString) [FieldConstraint] deriving (Show)
+
+
+allConstraints :: Table -> [TableConstraint]
+allConstraints (Table _ fs tcs) = tcs ++ concatMap fcToTc fs
+    where
+        fcToTc (Field n _ _ fcs) = fmap (TableConstraint [n]) fcs
 
 --------------------------------------------------------------------------------
 -- YAML to data
@@ -62,22 +70,17 @@ extractSimpleField name bs _ =
     then
         extractFkField (T.take (T.length name - 3) name) bs
     else
-        Right $ Field name bs False Nothing []
+        Right $ Field name bs Nothing [ NotNull ]
 
 extractFkField :: T.Text -> BS.ByteString -> Either String Field
 extractFkField table_name bs = let
     field_name = table_name <> "_id"
-    cst = TE.encodeUtf8 $ "references " <> table_name <> "(" <> field_name <> ")"
-    nu = bs == "null"
-    in Right $ Field field_name "uuid" nu Nothing [cst]
+    cst = Fk table_name field_name
+    ccst = if bs == "null" then [cst] else [NotNull, cst]
+    in Right $ Field field_name "uuid" Nothing ccst
 
 extractComplexField :: T.Text -> [(T.Text, YamlValue)] -> Either String Field
 extractComplexField _ _ = Left "todo"
-
-
-extractConstraint :: YamlValue -> Either String Constraint
-extractConstraint _ = Left "todo"
-
 
 
 --------------------------------------------------------------------------------
@@ -106,11 +109,17 @@ tableToSQL (Table n fs _) = let
     in prefix <> (BS.intercalate ",\n" $ fmap ("    " <>) lns) <> suffix
 
 fieldToSQL :: Field -> BS.ByteString
-fieldToSQL (Field n t nu d cst) = let
+fieldToSQL (Field n t d cst) = let
     nbs = TE.encodeUtf8 n
-    nn = if nu then "" else "not null"
     df = maybe "" ("default " <>) d
-    in BS.intercalate " " $ filter (/= "") ([nbs, t, nn, df] ++ cst)
+    in BS.intercalate " " $ filter (/= "") ([nbs, t, df] ++ fmap fieldConstraintToSQL cst)
+
+fieldConstraintToSQL :: FieldConstraint -> BS.ByteString
+fieldConstraintToSQL Pk = "primary key"
+fieldConstraintToSQL NotNull = "not null"
+fieldConstraintToSQL (Fk table field)  = TE.encodeUtf8 $ "references " <> table <>"(" <> field <> ")"
+fieldConstraintToSQL Unique = "unique"
+fieldConstraintToSQL (Other t) = t
 
 
 main :: IO ()
