@@ -23,11 +23,6 @@ data Table = Table T.Text [Field] [TableConstraint] deriving (Show)
 data Field = Field T.Text BS.ByteString (Maybe BS.ByteString) [FieldConstraint] deriving (Show)
 
 
-allConstraints :: Table -> [TableConstraint]
-allConstraints (Table _ fs tcs) = tcs ++ concatMap fcToTc fs
-    where
-        fcToTc (Field n _ _ fcs) = fmap (TableConstraint [n]) fcs
-
 --------------------------------------------------------------------------------
 -- YAML to data
 --
@@ -54,7 +49,7 @@ extractEnum name vs = let
 
 extractTable :: T.Text -> [(T.Text, YamlValue)] -> Either String Table
 extractTable name vs = let
-    fs = fmap (uncurry extractField) vs
+    fs = (Right $ Field (name <> "_id") "uuid" Nothing [Pk]) : fmap (uncurry extractField) vs
     ffs = sequence fs
     in fmap (\fields -> Table name fields []) ffs
 
@@ -100,13 +95,18 @@ enumToSQL (DbEnum n vs) = let
     in prefix <> (BS.intercalate ", " vals) <> suffix
 
 tableToSQL :: Table -> BS.ByteString
-tableToSQL (Table n fs _) = let
+tableToSQL (Table n fs cs) = let
     nbs = TE.encodeUtf8 n
     prefix = "create table " <> nbs <> " (\n"
-    pk_line = nbs <> "_id uuid primary key"
-    lns = pk_line : fmap fieldToSQL fs
+    lines = fmap fieldToSQL fs ++ fmap tableConstraintToSQL cs
     suffix = "\n);\n\n"
-    in prefix <> (BS.intercalate ",\n" $ fmap ("    " <>) lns) <> suffix
+    in prefix <> (BS.intercalate ",\n" $ fmap ("    " <>) lines) <> suffix
+
+tableConstraintToSQL :: TableConstraint -> BS.ByteString
+tableConstraintToSQL (TableConstraint fs Pk) = TE.encodeUtf8 $ "primary key ("<> T.intercalate ", " fs <>")"
+tableConstraintToSQL (TableConstraint fs Unique) = TE.encodeUtf8 $ "unique ("<> T.intercalate ", " fs <>")"
+tableConstraintToSQL (TableConstraint _ (Other t)) = "check " <> t
+tableConstraintToSQL _ = "" -- TODO Check what else could make sense
 
 fieldToSQL :: Field -> BS.ByteString
 fieldToSQL (Field n t d cst) = let
@@ -119,7 +119,7 @@ fieldConstraintToSQL Pk = "primary key"
 fieldConstraintToSQL NotNull = "not null"
 fieldConstraintToSQL (Fk table field)  = TE.encodeUtf8 $ "references " <> table <>"(" <> field <> ")"
 fieldConstraintToSQL Unique = "unique"
-fieldConstraintToSQL (Other t) = t
+fieldConstraintToSQL (Other t) = "check " <> t
 
 
 main :: IO ()
