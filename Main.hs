@@ -25,6 +25,16 @@ data Table = Table T.Text [Field] [TableConstraint] deriving (Show)
 data Field = Field T.Text BS.ByteString (Maybe BS.ByteString) [FieldConstraint] deriving (Show)
 
 
+
+isPk :: FieldConstraint -> Bool
+isPk Pk = True
+isPk _  = False
+
+isFk :: FieldConstraint -> Bool
+isFk (Fk _ _) = True
+isFk _        = False
+
+
 --------------------------------------------------------------------------------
 -- YAML to data
 --
@@ -77,7 +87,8 @@ extractSimpleField name ftype _ =
     let modifiers = takeWhile (not . isAlpha) . T.unpack $ name
         realName = T.drop (length modifiers) name
         constraints = inferFieldConstraints modifiers realName
-    in Right $ Field realName ftype Nothing constraints
+        isReference = any isFk constraints
+    in Right $ Field realName (if isReference then "uuid" else ftype) Nothing constraints
 
 extractComplexField :: T.Text -> [(T.Text, YamlValue)] -> Either String Field
 extractComplexField _ _ = Left "todo"
@@ -167,10 +178,6 @@ fieldToDot (Field n t _ cs)
     | any isFk cs = dotLine "LEFT" "#CCFFCC" content
     | otherwise = dotLine "LEFT" "#FFFFFF" content
     where
-        isPk Pk = True
-        isPk _  = False
-        isFk (Fk _ _) = True
-        isFk _        = False
         content = TE.encodeUtf8 n <> ": " <> t
 
 dataDepsToDot :: [Type] -> BS.ByteString
