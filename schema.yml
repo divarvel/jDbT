@@ -1,0 +1,25 @@
+status:
+  - Test
+  - Prod
+
+group:
+  name: text
+
+address:
+  line1: text
+  line2: text
+  zip: text
+  city: text
+  country: text
+
+post:
+  +?title: text
+  ?content: text
+
+user:
+  firstname: text
+  lastname: text
+  nickname: text
+  ?group_id:
+  address_id:
+
