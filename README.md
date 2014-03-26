@@ -68,8 +68,8 @@ create table user (
     firstname text not null,
     lastname text not null,
     nickname text not null,
-    group_id references group(group_id),
-    address_id not null references address(address_id)
+    group_id uuid references group(group_id),
+    address_id uuid not null references address(address_id)
 );
 ```
 
