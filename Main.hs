@@ -2,7 +2,8 @@
 
 import System.Environment (getArgs)
 import Text.Libyaml (Tag, Tag(..))
-import Data.Maybe (mapMaybe)
+import Data.Char (isAlpha)
+import Data.Maybe (catMaybes, mapMaybe)
 import Data.Yaml.Parser (YamlValue, YamlValue(..), readYamlFile)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -60,20 +61,23 @@ extractField name (Mapping vs _) = extractComplexField name vs
 extractField name (Sequence _ _) = Left $ "invalid value for field " <> T.unpack name <> ": sequence"
 extractField name (Alias _ ) = Left $ "invalid value for field " <> T.unpack name <> ": alias"
 
-extractSimpleField :: T.Text -> BS.ByteString -> Tag -> Either String Field
-extractSimpleField name bs _ =
-    if "_id" `T.isSuffixOf` name
-    then
-        extractFkField (T.take (T.length name - 3) name) bs
-    else
-        Right $ Field name bs Nothing [ NotNull ]
 
-extractFkField :: T.Text -> BS.ByteString -> Either String Field
-extractFkField table_name bs = let
-    field_name = table_name <> "_id"
-    cst = Fk table_name field_name
-    ccst = if bs == "null" then [cst] else [NotNull, cst]
-    in Right $ Field field_name "uuid" Nothing ccst
+inferFieldConstraints :: String -> T.Text -> [FieldConstraint]
+inferFieldConstraints modifiers name = catMaybes [ notNull, unique, fk ]
+    where
+        notNull = if '?' `elem` modifiers then Nothing else Just NotNull
+        unique  = if '+' `elem` modifiers then Just Unique else Nothing
+        fk      = if "_id" `T.isSuffixOf` name then
+            let f_table = T.take (T.length name - 3) name
+            in Just $ Fk f_table name
+            else Nothing
+
+extractSimpleField :: T.Text -> BS.ByteString -> Tag -> Either String Field
+extractSimpleField name ftype _ =
+    let modifiers = takeWhile (not . isAlpha) . T.unpack $ name
+        realName = T.drop (length modifiers) name
+        constraints = inferFieldConstraints modifiers realName
+    in Right $ Field realName ftype Nothing constraints
 
 extractComplexField :: T.Text -> [(T.Text, YamlValue)] -> Either String Field
 extractComplexField _ _ = Left "todo"

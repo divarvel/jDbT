@@ -13,13 +13,13 @@ address:
   country: text
 
 post:
-  title: text
-  content: text
+  +?title: text
+  ?content: text
 
 user:
   firstname: text
   lastname: text
   nickname: text
-  group_id: null
+  ?group_id:
   address_id:
 

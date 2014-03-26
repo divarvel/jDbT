@@ -23,15 +23,16 @@ address:
   country: text
 
 post:
-  title: text
-  content: text
+  +?title: text
+  ?content: text
 
 user:
   firstname: text
   lastname: text
   nickname: text
-  group_id: null
+  ?group_id:
   address_id:
+
 ```
 
     jdbt ./schema.yml > schema.sql
@@ -40,7 +41,6 @@ user:
 `schema.sql`
 
 ```sql
-
 create type status as enum('Test', 'Prod');
 
 create table group (
@@ -59,8 +59,8 @@ create table address (
 
 create table post (
     post_id uuid primary key,
-    title text not null,
-    content text not null
+    title text unique,
+    content text
 );
 
 create table user (
@@ -68,10 +68,9 @@ create table user (
     firstname text not null,
     lastname text not null,
     nickname text not null,
-    group_id uuid references group(group_id),
-    address_id uuid not null references address(address_id)
+    group_id references group(group_id),
+    address_id not null references address(address_id)
 );
-
 ```
 
 `schema.png`
@@ -85,7 +84,9 @@ The input is a `yml` file describing the tables.
 
 The following conventions are assumed:
 
- - every field has a `not null` constraint by default
+ - every field has a `not null` constraint by default, unless it has a `?` at
+   the beginning of its name
+ - `+` at the beginning of a field name means it has a `unique` constraint
  - all tables have a primary key named `<table_name>_id` of type uuid
  - every column named `<something>_id` is assumed to be a foreign key
 
@@ -93,9 +94,6 @@ ToDo: allow the overriding of these conventions:
 
  - allow to define these properties explicitely
  - don't add the primary key if there is already one defined
-
-ToDo: alow to add information with a short syntax (eg: `!` for unicity, `?`
-for nullability, usw.
 
 ## Output formats
 
