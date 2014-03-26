@@ -77,8 +77,15 @@ create table user (
 
 ![](./schema.png)
 
+## Install
 
-## Input file
+    cabal sandbox init
+    cabal install
+    cp .cabal-sandbox/dist/bin/jdbt ~/.local/bin
+
+## Use
+
+### Input file
 
 The input is a `yml` file describing the tables.
 
@@ -95,14 +102,14 @@ ToDo: allow the overriding of these conventions:
  - allow to define these properties explicitely
  - don't add the primary key if there is already one defined
 
-## Output formats
+### Output formats
 
-### SQL
+#### SQL
 
 Right now only postgresql is supported. Are there any other RDBMSs out there
 anyway?
 
-### Dot
+#### Dot
 
 jDbT can output a file in the `dot` format, which you can compile with `dot`,
 from `Graphviz`.
