@@ -141,3 +141,25 @@ anyway?
 
 jDbT can output a file in the `dot` format, which you can compile with `dot`,
 from `Graphviz`.
+
+#### Play Evolution scripts
+
+ToDo
+
+#### Scala case classes
+
+ToDo
+
+#### Haskell records
+
+ToDo
+
+#### SQL dummy data
+
+ToDo
+
+## History
+
+jDbT was originally a python script put together by @clementd, @ahoy\_jon and
+@benjaminvialle for contract work. @clementd rewrote it from scratch in
+Haskell after a few years
