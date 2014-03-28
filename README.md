@@ -12,7 +12,7 @@ status:
   - Test
   - Prod
 
-group:
+team:
   name: text
 
 address:
@@ -26,13 +26,22 @@ post:
   +?title: text
   ?content: text
 
-user:
+member:
   firstname: text
   lastname: text
   nickname: text
-  ?group_id:
+  ?team_id:
   address_id:
+  __unique: [ firstname, lastname ]
 
+tag:
+    +name: text
+    __check: name <> 'prolapse'
+
+post_tag:
+    post_id:
+    tag_id:
+    __pk: [ tag_id, post_id ]
 ```
 
     jdbt ./schema.yml > schema.sql

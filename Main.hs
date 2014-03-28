@@ -1,13 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+import Control.Applicative ((<$>), (<*>))
 import System.Environment (getArgs)
 import Text.Libyaml (Tag, Tag(..))
 import Data.Char (isAlpha)
+import Data.List (partition)
 import Data.Maybe (catMaybes, mapMaybe)
 import Data.Yaml.Parser (YamlValue, YamlValue(..), readYamlFile)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as C8
 import Data.Monoid ((<>))
 import Data.Foldable (foldMap)
 
@@ -30,10 +33,24 @@ isPk :: FieldConstraint -> Bool
 isPk Pk = True
 isPk _  = False
 
+isPkField :: Field -> Bool
+isPkField (Field _ _ _ fcts) = any isPk fcts
+
+isTablePk :: TableConstraint -> Bool
+isTablePk (TableConstraint _ c) = isPk c
+
 isFk :: FieldConstraint -> Bool
 isFk (Fk _ _) = True
 isFk _        = False
 
+extractScalars :: [YamlValue] -> Either String [BS.ByteString]
+extractScalars = mapM extractScalar
+    where
+        extractScalar (Scalar bs _ _ _) = Right bs
+        extractScalar _                 = Left "not a scalar"
+
+extractFieldNames :: [YamlValue] -> Either String [T.Text]
+extractFieldNames = fmap (fmap TE.decodeUtf8) . extractScalars
 
 --------------------------------------------------------------------------------
 -- YAML to data
@@ -53,17 +70,38 @@ extractType _ _ = Left "invalid type value"
 
 extractEnum :: T.Text -> [YamlValue] -> Either String DbEnum
 extractEnum name vs = let
-    vvs = mapM extractEnumValue vs
+    vvs = extractScalars vs
     in fmap (DbEnum name) vvs
-    where
-        extractEnumValue (Scalar t _ _ _) = Right t
-        extractEnumValue _ = Left "invalid enum value"
 
 extractTable :: T.Text -> [(T.Text, YamlValue)] -> Either String Table
 extractTable name vs = let
-    fs = (Right $ Field (name <> "_id") "uuid" Nothing [Pk]) : fmap (uncurry extractField) vs
-    ffs = sequence fs
-    in fmap (\fields -> Table name fields []) ffs
+    (constraintValues, fieldValues) = partition (("__" `T.isPrefixOf`) . fst) vs
+    constraints = mapM (uncurry extractTableConstraint) constraintValues
+    fields = mapM (uncurry extractField) fieldValues
+    makeTable fs cs =
+        if (hasPrimaryKey fs cs) then
+            Table name fs cs
+        else let
+            fname = name <> "_id"
+            pkField = Field fname "uuid" Nothing [ Pk ]
+            in Table name (pkField : fs) cs
+    in makeTable <$> fields <*> constraints
+
+hasPrimaryKey :: [Field] -> [TableConstraint] -> Bool
+hasPrimaryKey fields constraints = let
+    fieldFk = any isPkField fields
+    tableFk = any isTablePk constraints
+    in fieldFk || tableFk
+
+extractTableConstraint :: T.Text -> YamlValue -> Either String TableConstraint
+extractTableConstraint "__pk"     (Sequence vs _)   = fmap (\fields -> TableConstraint fields Pk) $ extractFieldNames vs
+extractTableConstraint "__pk"     (Scalar bs _ _ _) = Right $ TableConstraint [ TE.decodeUtf8 bs ] Pk
+extractTableConstraint "__pk"     _                 = Left "invalid primary key constraint"
+extractTableConstraint "__unique" (Sequence vs _)   = fmap (\fields -> TableConstraint fields Unique) $ extractFieldNames vs
+extractTableConstraint "__unique" (Scalar bs _ _ _) = Right $ TableConstraint [ TE.decodeUtf8 bs ] Unique
+extractTableConstraint "__unique" _                 = Left "invalid unicity constraint"
+extractTableConstraint "__check"  (Scalar bs _ _ _) = Right $ TableConstraint [] $ Other bs
+extractTableConstraint _          _                 = Left "invalid table constraint"
 
 extractField :: T.Text -> YamlValue -> Either String Field
 extractField name (Scalar bs t _ _) = extractSimpleField name bs t
@@ -117,15 +155,18 @@ tableToSQL :: Table -> BS.ByteString
 tableToSQL (Table n fs cs) = let
     nbs = TE.encodeUtf8 n
     prefix = "create table " <> nbs <> " (\n"
-    lns = fmap fieldToSQL fs ++ fmap tableConstraintToSQL cs
+    fieldLines = fmap fieldToSQL fs
+    constraintLines = fmap (uncurry tableConstraintToSQL) $ zip [0..] cs
+    allLines = fieldLines ++ constraintLines
+    indent = fmap ("    " <>)
     suffix = "\n);\n\n"
-    in prefix <> (BS.intercalate ",\n" $ fmap ("    " <>) lns) <> suffix
+    in prefix <> (BS.intercalate ",\n" $ indent allLines) <> suffix
 
-tableConstraintToSQL :: TableConstraint -> BS.ByteString
-tableConstraintToSQL (TableConstraint fs Pk) = TE.encodeUtf8 $ "primary key ("<> T.intercalate ", " fs <>")"
-tableConstraintToSQL (TableConstraint fs Unique) = TE.encodeUtf8 $ "unique ("<> T.intercalate ", " fs <>")"
-tableConstraintToSQL (TableConstraint _ (Other t)) = "check " <> t
-tableConstraintToSQL _ = "" -- TODO Check what else could make sense
+tableConstraintToSQL :: Int -> TableConstraint -> BS.ByteString
+tableConstraintToSQL _ (TableConstraint fs Pk) = TE.encodeUtf8 $ "primary key ("<> T.intercalate ", " fs <>")"
+tableConstraintToSQL _ (TableConstraint fs Unique) = TE.encodeUtf8 $ "unique ("<> T.intercalate ", " fs <>")"
+tableConstraintToSQL idx (TableConstraint _ (Other t)) = "constraint cst_" <> (C8.pack $ show idx) <> " check (" <> t <> ")"
+tableConstraintToSQL _ _ = "" -- TODO Check what else could make sense
 
 fieldToSQL :: Field -> BS.ByteString
 fieldToSQL (Field n t d cst) = let
