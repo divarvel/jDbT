@@ -126,7 +126,13 @@ extractSimpleField name ftype _ =
         realName = T.drop (length modifiers) name
         constraints = inferFieldConstraints modifiers realName
         isReference = any isFk constraints
-    in Right $ Field realName (if isReference then "uuid" else ftype) Nothing constraints
+        values = C8.split '|' ftype
+        (fieldType, defVal) = case values of
+            t : d : _ -> (t, Just d)
+            t : _ -> (t, Nothing)
+            _ -> ("", Nothing)
+
+    in Right $ Field realName (if isReference then "uuid" else fieldType) defVal constraints
 
 extractComplexField :: T.Text -> [(T.Text, YamlValue)] -> Either String Field
 extractComplexField _ _ = Left "todo"
@@ -171,7 +177,7 @@ tableConstraintToSQL _ _ = "" -- TODO Check what else could make sense
 fieldToSQL :: Field -> BS.ByteString
 fieldToSQL (Field n t d cst) = let
     nbs = TE.encodeUtf8 n
-    df = maybe "" ("default " <>) d
+    df = maybe "" (\v -> "default " <> v <> "::" <> t) d
     in BS.intercalate " " $ filter (/= "") ([nbs, t, df] ++ fmap fieldConstraintToSQL cst)
 
 fieldConstraintToSQL :: FieldConstraint -> BS.ByteString

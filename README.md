@@ -8,6 +8,7 @@ associated information from a lightweight spec.
 `schema.yml`
 
 ```yaml
+
 status:
   - Test
   - Prod
@@ -32,6 +33,7 @@ member:
   nickname: text
   ?team_id:
   address_id:
+  status: status | 'Test'
   __unique: [ firstname, lastname ]
 
 tag:
@@ -42,6 +44,7 @@ post_tag:
     post_id:
     tag_id:
     __pk: [ tag_id, post_id ]
+
 ```
 
     jdbt ./schema.yml > schema.sql
@@ -50,10 +53,11 @@ post_tag:
 `schema.sql`
 
 ```sql
+
 create type status as enum('Test', 'Prod');
 
-create table group (
-    group_id uuid primary key,
+create table team (
+    team_id uuid primary key,
     name text not null
 );
 
@@ -72,14 +76,29 @@ create table post (
     content text
 );
 
-create table user (
-    user_id uuid primary key,
+create table member (
+    member_id uuid primary key,
     firstname text not null,
     lastname text not null,
     nickname text not null,
-    group_id uuid references group(group_id),
-    address_id uuid not null references address(address_id)
+    team_id uuid references team(team_id),
+    address_id uuid not null references address(address_id),
+    status status  default  'Test'::status  not null,
+    unique (firstname, lastname)
 );
+
+create table tag (
+    tag_id uuid primary key,
+    name text not null unique,
+    constraint cst_0 check (name <> 'prolapse')
+);
+
+create table post_tag (
+    post_id uuid not null references post(post_id),
+    tag_id uuid not null references tag(tag_id),
+    primary key (tag_id, post_id)
+);
+
 ```
 
 `schema.png`
