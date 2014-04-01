@@ -10,6 +10,7 @@ cabal-version:       >=1.6
 Executable jdbt
   Ghc-Options:    -Wall
   main-is:             Main.hs
+  hs-source-dirs:      src
   build-depends:
     base >= 4,
     text >= 1,
