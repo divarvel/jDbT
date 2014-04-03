@@ -3,28 +3,26 @@
 module JDBT.Parser ( extractTypes ) where
 
 
-import           Control.Applicative   ((<$>), (<*>))
-import qualified Data.ByteString       as BS
-import qualified Data.ByteString.Char8 as C8
-import           Data.Char             (isAlpha)
-import           Data.List             (partition)
-import           Data.Maybe            (catMaybes)
-import           Data.Monoid           ((<>))
-import qualified Data.Text             as T
-import qualified Data.Text.Encoding    as TE
-import           Data.Yaml.Parser      (YamlValue, YamlValue (..))
-import           Text.Libyaml          (Tag, Tag (..))
+import           Control.Applicative ((<$>), (<*>))
+import           Data.Char           (isAlpha)
+import           Data.List           (partition)
+import           Data.Maybe          (catMaybes)
+import           Data.Monoid         ((<>))
+import qualified Data.Text           as T
+import qualified Data.Text.Encoding  as TE
+import           Data.Yaml.Parser    (YamlValue, YamlValue (..))
+import           Text.Libyaml        (Tag, Tag (..))
 
 import           JDBT.Types
 
-extractScalars :: [YamlValue] -> Either String [BS.ByteString]
+extractScalars :: [YamlValue] -> Either String [T.Text]
 extractScalars = mapM extractScalar
     where
-        extractScalar (Scalar bs _ _ _) = Right bs
+        extractScalar (Scalar bs _ _ _) = Right (TE.decodeUtf8 bs)
         extractScalar _                 = Left "not a scalar"
 
 extractFieldNames :: [YamlValue] -> Either String [T.Text]
-extractFieldNames = fmap (fmap TE.decodeUtf8) . extractScalars
+extractFieldNames = fmap (fmap id) . extractScalars
 
 --------------------------------------------------------------------------------
 -- YAML to data
@@ -74,11 +72,11 @@ extractTableConstraint "__pk"     _                 = Left "invalid primary key 
 extractTableConstraint "__unique" (Sequence vs _)   = fmap (\fields -> TableConstraint fields Unique) $ extractFieldNames vs
 extractTableConstraint "__unique" (Scalar bs _ _ _) = Right $ TableConstraint [ TE.decodeUtf8 bs ] Unique
 extractTableConstraint "__unique" _                 = Left "invalid unicity constraint"
-extractTableConstraint "__check"  (Scalar bs _ _ _) = Right $ TableConstraint [] $ Other bs
+extractTableConstraint "__check"  (Scalar bs _ _ _) = Right $ TableConstraint [] $ Other (TE.decodeUtf8 bs)
 extractTableConstraint _          _                 = Left "invalid table constraint"
 
 extractField :: T.Text -> YamlValue -> Either String Field
-extractField name (Scalar bs t _ _) = extractSimpleField name bs t
+extractField name (Scalar bs t _ _) = extractSimpleField name (TE.decodeUtf8 bs) t
 extractField name (Mapping vs _) = extractComplexField name vs
 extractField name (Sequence _ _) = Left $ "invalid value for field " <> T.unpack name <> ": sequence"
 extractField name (Alias _ ) = Left $ "invalid value for field " <> T.unpack name <> ": alias"
@@ -94,13 +92,13 @@ inferFieldConstraints modifiers name = catMaybes [ notNull, unique, fk ]
             in Just $ Fk f_table name
             else Nothing
 
-extractSimpleField :: T.Text -> BS.ByteString -> Tag -> Either String Field
+extractSimpleField :: T.Text -> T.Text -> Tag -> Either String Field
 extractSimpleField name ftype _ =
     let modifiers = takeWhile (not . isAlpha) . T.unpack $ name
         realName = T.drop (length modifiers) name
         constraints = inferFieldConstraints modifiers realName
         isReference = any isFk constraints
-        values = C8.split '|' ftype
+        values = T.splitOn "|" ftype
         (fieldType, defVal) = case values of
             t : d : _ -> (t, Just d)
             t : _ -> (t, Nothing)
