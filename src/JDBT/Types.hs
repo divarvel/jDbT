@@ -4,14 +4,17 @@ module JDBT.Types where
 import qualified Data.ByteString as BS
 import qualified Data.Text       as T
 
+type TableName = T.Text
+type FieldName = T.Text
+
 data FieldConstraint = NotNull
                      | Pk
-                     | Fk T.Text T.Text
+                     | Fk TableName FieldName
                      | Unique
                      | Other BS.ByteString
                      deriving (Show)
 
-data TableConstraint = TableConstraint [T.Text] FieldConstraint
+data TableConstraint = TableConstraint [FieldName] FieldConstraint
                      deriving (Show)
 
 data Type = Tb Table
@@ -21,10 +24,10 @@ data Type = Tb Table
 data DbEnum = DbEnum T.Text [BS.ByteString]
             deriving (Show)
 
-data Table = Table T.Text [Field] [TableConstraint]
+data Table = Table TableName [Field] [TableConstraint]
            deriving (Show)
 
-data Field = Field T.Text BS.ByteString (Maybe BS.ByteString) [FieldConstraint]
+data Field = Field FieldName BS.ByteString (Maybe BS.ByteString) [FieldConstraint]
            deriving (Show)
 
 
