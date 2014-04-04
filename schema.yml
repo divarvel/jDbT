@@ -15,6 +15,11 @@ address:
 post:
   +?title: text
   ?content: text
+  chapo:
+    type: text
+    constraints:
+        unique:
+        check: char_length(chapo) < 200
 
 member:
   firstname: text

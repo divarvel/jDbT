@@ -15,11 +15,17 @@ import           Text.Libyaml        (Tag, Tag (..))
 
 import           JDBT.Types
 
+extractScalar :: YamlValue -> Either String T.Text
+extractScalar (Scalar bs _ _ _) = Right (TE.decodeUtf8 bs)
+extractScalar _                 = Left "not a scalar"
+
 extractScalars :: [YamlValue] -> Either String [T.Text]
 extractScalars = mapM extractScalar
+
+extractScalarPairs :: [(T.Text, YamlValue)] -> Either String [(T.Text, T.Text)]
+extractScalarPairs = mapM extractScalarValue
     where
-        extractScalar (Scalar bs _ _ _) = Right (TE.decodeUtf8 bs)
-        extractScalar _                 = Left "not a scalar"
+        extractScalarValue (name, value) = fmap (\v -> (name, v)) $ extractScalar value
 
 extractFieldNames :: [YamlValue] -> Either String [T.Text]
 extractFieldNames = fmap (fmap id) . extractScalars
@@ -107,5 +113,30 @@ extractSimpleField name ftype _ =
     in Right $ Field realName (if isReference then "uuid" else fieldType) defVal constraints
 
 extractComplexField :: T.Text -> [(T.Text, YamlValue)] -> Either String Field
-extractComplexField _ _ = Left "todo"
+extractComplexField name values =
+    let scalarFields = filter (\n -> fst n `elem` ["type", "default"]) values
+        mandatoryLookup t = (maybe (Left "missing value") Right) . (lookup t)
+    in do
+        pairs <- extractScalarPairs $ scalarFields
+        ftype <- (mandatoryLookup "type" pairs)
+        let defVal = lookup "default" pairs
+        constraints <- maybe (Right []) extractComplexFieldConstraints $ lookup "constraints" values
+        return $ Field name ftype defVal constraints
+
+
+extractComplexFieldConstraints :: YamlValue -> Either String [ FieldConstraint ]
+extractComplexFieldConstraints (Mapping vs _) = mapM (uncurry extractComplexFieldConstraint) vs
+extractComplexFieldConstraints _              = Left "invalid field constraints"
+
+extractComplexFieldConstraint :: T.Text -> YamlValue -> Either String FieldConstraint
+extractComplexFieldConstraint "unique" _ = Right Unique
+extractComplexFieldConstraint "pk" _ = Right Pk
+extractComplexFieldConstraint "fk" (Scalar val _ _ _) = let
+        tval = (TE.decodeUtf8 val :: T.Text)
+        elems = T.split (== ' ') tval
+    in case elems of
+        (tname : fname : []) -> Right $ Fk tname fname
+        _                    -> Left "invalid fk definition"
+extractComplexFieldConstraint "check" (Scalar val _ _ _) = Right . Other $ TE.decodeUtf8 val
+extractComplexFieldConstraint _    _ = Left "invalid field constraint"
 
