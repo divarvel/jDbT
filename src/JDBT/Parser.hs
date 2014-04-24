@@ -28,7 +28,7 @@ extractScalarPairs = mapM extractScalarValue
         extractScalarValue (name, value) = fmap (\v -> (name, v)) $ extractScalar value
 
 extractFieldNames :: [YamlValue] -> Either String [T.Text]
-extractFieldNames = fmap (fmap id) . extractScalars
+extractFieldNames = extractScalars
 
 --------------------------------------------------------------------------------
 -- YAML to data
@@ -57,7 +57,7 @@ extractTable name vs = let
     constraints = mapM (uncurry extractTableConstraint) constraintValues
     fields = mapM (uncurry extractField) fieldValues
     makeTable fs cs =
-        if (hasPrimaryKey fs cs) then
+        if hasPrimaryKey fs cs then
             Table name fs cs
         else let
             fname = name <> "_id"
@@ -72,10 +72,10 @@ hasPrimaryKey fields constraints = let
     in fieldFk || tableFk
 
 extractTableConstraint :: T.Text -> YamlValue -> Either String TableConstraint
-extractTableConstraint "__pk"     (Sequence vs _)   = fmap (\fields -> TableConstraint fields Pk) $ extractFieldNames vs
+extractTableConstraint "__pk"     (Sequence vs _)   = fmap (flip TableConstraint Pk) $ extractFieldNames vs
 extractTableConstraint "__pk"     (Scalar bs _ _ _) = Right $ TableConstraint [ TE.decodeUtf8 bs ] Pk
 extractTableConstraint "__pk"     _                 = Left "invalid primary key constraint"
-extractTableConstraint "__unique" (Sequence vs _)   = fmap (\fields -> TableConstraint fields Unique) $ extractFieldNames vs
+extractTableConstraint "__unique" (Sequence vs _)   = fmap (flip TableConstraint Unique) $ extractFieldNames vs
 extractTableConstraint "__unique" (Scalar bs _ _ _) = Right $ TableConstraint [ TE.decodeUtf8 bs ] Unique
 extractTableConstraint "__unique" _                 = Left "invalid unicity constraint"
 extractTableConstraint "__check"  (Scalar bs _ _ _) = Right $ TableConstraint [] $ Other (TE.decodeUtf8 bs)
@@ -115,10 +115,10 @@ extractSimpleField name ftype _ =
 extractComplexField :: T.Text -> [(T.Text, YamlValue)] -> Either String Field
 extractComplexField name values =
     let scalarFields = filter (\n -> fst n `elem` ["type", "default"]) values
-        mandatoryLookup t = (maybe (Left "missing value") Right) . (lookup t)
+        mandatoryLookup t = maybe (Left "missing value") Right . lookup t
     in do
-        pairs <- extractScalarPairs $ scalarFields
-        ftype <- (mandatoryLookup "type" pairs)
+        pairs <- extractScalarPairs scalarFields
+        ftype <- mandatoryLookup "type" pairs
         let defVal = lookup "default" pairs
         constraints <- maybe (Right []) extractComplexFieldConstraints $ lookup "constraints" values
         return $ Field name ftype defVal constraints
