@@ -1,61 +1,48 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module JDBT.Parser ( extractTypes ) where
+module JDBT.Parser where
 
-
-import           Control.Applicative ((<$>), (<*>))
+import           Control.Applicative
 import           Data.Char           (isAlpha)
-import           Data.List           (partition)
+import           Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as H
 import           Data.Maybe          (catMaybes)
 import           Data.Monoid         ((<>))
+import           Data.Text           (Text)
 import qualified Data.Text           as T
-import qualified Data.Text.Encoding  as TE
-import           Data.Yaml.Parser    (YamlValue, YamlValue (..))
-import           Text.Libyaml        (Tag, Tag (..))
+import           Data.Traversable    (traverse)
+import           Data.Vector         (Vector)
+import qualified Data.Vector         as V
+import           Data.Yaml
+import           Data.Aeson.Types (typeMismatch)
 
 import           JDBT.Types
 
-extractScalar :: YamlValue -> Either String T.Text
-extractScalar (Scalar bs _ _ _) = Right (TE.decodeUtf8 bs)
-extractScalar _                 = Left "not a scalar"
+instance FromJSON Schema where
+    parseJSON = fmap Schema . extractTypes
 
-extractScalars :: [YamlValue] -> Either String [T.Text]
-extractScalars = mapM extractScalar
+-- * Top Parsers
+extractTypes :: Value -> Parser [Type]
+extractTypes (Object o) = H.elems <$> H.traverseWithKey extractType o
+extractTypes x = typeMismatch "object" x
 
-extractScalarPairs :: [(T.Text, YamlValue)] -> Either String [(T.Text, T.Text)]
-extractScalarPairs = mapM extractScalarValue
-    where
-        extractScalarValue (name, value) = fmap (\v -> (name, v)) $ extractScalar value
+extractType :: Text -> Value -> Parser Type
+extractType name (Object o) = Tb <$> extractTable name o
+extractType name (Array a) = En <$> extractEnum name a
+extractType _ x = typeMismatch "object or array" x
 
-extractFieldNames :: [YamlValue] -> Either String [T.Text]
-extractFieldNames = extractScalars
+-- ** Enumerations
+extractEnum :: Text -> Vector Value -> Parser DbEnum
+extractEnum name v = DbEnum <$> pure name <*> fmap V.toList (V.mapM extractScalar v)
 
---------------------------------------------------------------------------------
--- YAML to data
---
-extractTypes :: YamlValue -> Either String [Type]
-extractTypes (Mapping vs _) = let
-    ts = (fmap (uncurry extractType) vs :: [Either String Type])
-    tts = sequence ts
-    in tts
-extractTypes _ = Left "invalid top value"
-
-
-extractType :: T.Text -> YamlValue -> Either String Type
-extractType name (Mapping vs _) = fmap Tb $ extractTable name vs
-extractType name (Sequence vs _) = fmap En $ extractEnum name vs
-extractType _ _ = Left "invalid type value"
-
-extractEnum :: T.Text -> [YamlValue] -> Either String DbEnum
-extractEnum name vs = let
-    vvs = extractScalars vs
-    in fmap (DbEnum name) vvs
-
-extractTable :: T.Text -> [(T.Text, YamlValue)] -> Either String Table
+-- ** Tables
+extractTable :: Text -> HashMap Text Value -> Parser Table
 extractTable name vs = let
-    (constraintValues, fieldValues) = partition (("__" `T.isPrefixOf`) . fst) vs
-    constraints = mapM (uncurry extractTableConstraint) constraintValues
-    fields = mapM (uncurry extractField) fieldValues
+    constraintValues = H.filterWithKey (const . ("__" `T.isPrefixOf`)) vs
+    fieldValues = vs `H.difference` constraintValues
+    constraints = H.traverseWithKey extractTableConstraint constraintValues
+    fields = H.traverseWithKey extractField fieldValues
     makeTable fs cs =
         if hasPrimaryKey fs cs then
             Table name fs cs
@@ -63,45 +50,17 @@ extractTable name vs = let
             fname = name <> "_id"
             pkField = Field fname "uuid" Nothing [ Pk ]
             in Table name (pkField : fs) cs
-    in makeTable <$> fields <*> constraints
+    in makeTable <$> fmap H.elems fields <*> fmap H.elems constraints
 
-hasPrimaryKey :: [Field] -> [TableConstraint] -> Bool
-hasPrimaryKey fields constraints = let
-    fieldFk = any isPkField fields
-    tableFk = any isTablePk constraints
-    in fieldFk || tableFk
+-- *** Fields
+extractField :: Text -> Value -> Parser Field
+extractField name (String t) = extractSimpleField name t
+extractField name (Object o) = extractComplexField name o
+extractField name x = typeMismatch ("invalid value for field " <> T.unpack name) x
 
-extractTableConstraint :: T.Text -> YamlValue -> Either String TableConstraint
-extractTableConstraint "__pk"     (Sequence vs _)   = fmap (flip TableConstraint Pk) $ extractFieldNames vs
-extractTableConstraint "__pk"     (Scalar bs _ _ _) = Right $ TableConstraint [ TE.decodeUtf8 bs ] Pk
-extractTableConstraint "__pk"     _                 = Left "invalid primary key constraint"
-extractTableConstraint "__unique" (Sequence vs _)   = fmap (flip TableConstraint Unique) $ extractFieldNames vs
-extractTableConstraint "__unique" (Scalar bs _ _ _) = Right $ TableConstraint [ TE.decodeUtf8 bs ] Unique
-extractTableConstraint "__unique" _                 = Left "invalid unicity constraint"
-extractTableConstraint "__check"  (Scalar bs _ _ _) = Right $ TableConstraint [] $ Other (TE.decodeUtf8 bs)
-extractTableConstraint _          _                 = Left "invalid table constraint"
-
-extractField :: T.Text -> YamlValue -> Either String Field
-extractField name (Scalar bs t _ _) = extractSimpleField name (TE.decodeUtf8 bs) t
-extractField name (Mapping vs _) = extractComplexField name vs
-extractField name (Sequence _ _) = Left $ "invalid value for field " <> T.unpack name <> ": sequence"
-extractField name (Alias _ ) = Left $ "invalid value for field " <> T.unpack name <> ": alias"
-
-
-inferFieldConstraints :: String -> T.Text -> [FieldConstraint]
-inferFieldConstraints modifiers name = catMaybes [ notNull, unique, fk ]
-    where
-        notNull = if '?' `elem` modifiers then Nothing else Just NotNull
-        unique  = if '+' `elem` modifiers then Just Unique else Nothing
-        fk      = if "_id" `T.isSuffixOf` name then
-            let f_table = T.take (T.length name - 3) name
-            in Just $ Fk f_table name
-            else Nothing
-
-extractSimpleField :: T.Text -> T.Text -> Tag -> Either String Field
-extractSimpleField name ftype _ =
-    let modifiers = takeWhile (not . isAlpha) . T.unpack $ name
-        realName = T.drop (length modifiers) name
+extractSimpleField :: Text -> Text -> Parser Field
+extractSimpleField name ftype =
+    let (modifiers,realName) = T.break (not . isAlpha) name
         constraints = inferFieldConstraints modifiers realName
         isReference = any isFk constraints
         values = T.splitOn "|" ftype
@@ -109,34 +68,64 @@ extractSimpleField name ftype _ =
             t : d : _ -> (t, Just d)
             t : _ -> (t, Nothing)
             _ -> ("", Nothing)
+    in return $ Field realName (if isReference then "uuid" else fieldType) defVal constraints
 
-    in Right $ Field realName (if isReference then "uuid" else fieldType) defVal constraints
 
-extractComplexField :: T.Text -> [(T.Text, YamlValue)] -> Either String Field
+inferFieldConstraints :: Text -> T.Text -> [FieldConstraint]
+inferFieldConstraints modifiers name = catMaybes [ notNull, unique, fk ]
+    where
+        notNull = if "?" `T.isInfixOf` modifiers then Nothing else Just NotNull
+        unique  = if "+" `T.isInfixOf` modifiers then Just Unique else Nothing
+        fk      = if "_id" `T.isSuffixOf` name then
+            let f_table = T.take (T.length name - 3) name
+            in Just $ Fk f_table name
+            else Nothing
+
+extractComplexField :: Text -> HashMap Text Value -> Parser Field
 extractComplexField name values =
-    let scalarFields = filter (\n -> fst n `elem` ["type", "default"]) values
-        mandatoryLookup t = maybe (Left "missing value") Right . lookup t
+    let scalarFields = H.filterWithKey (const . (`elem` ["type", "default"])) values
+        mandatoryLookup t = maybe (fail "missing value") return . H.lookup t
     in do
         pairs <- extractScalarPairs scalarFields
         ftype <- mandatoryLookup "type" pairs
-        let defVal = lookup "default" pairs
-        constraints <- maybe (Right []) extractComplexFieldConstraints $ lookup "constraints" values
+        let defVal = H.lookup "default" pairs
+        constraints <- maybe (return []) extractComplexFieldConstraints $ H.lookup "constraints" values
         return $ Field name ftype defVal constraints
 
+extractComplexFieldConstraints :: Value -> Parser [ FieldConstraint ]
+extractComplexFieldConstraints (Object o) = H.elems <$> H.traverseWithKey extractComplexFieldConstraint o
+extractComplexFieldConstraints _              = fail "invalid field constraints"
 
-extractComplexFieldConstraints :: YamlValue -> Either String [ FieldConstraint ]
-extractComplexFieldConstraints (Mapping vs _) = mapM (uncurry extractComplexFieldConstraint) vs
-extractComplexFieldConstraints _              = Left "invalid field constraints"
-
-extractComplexFieldConstraint :: T.Text -> YamlValue -> Either String FieldConstraint
-extractComplexFieldConstraint "unique" _ = Right Unique
-extractComplexFieldConstraint "pk" _ = Right Pk
-extractComplexFieldConstraint "fk" (Scalar val _ _ _) = let
-        tval = (TE.decodeUtf8 val :: T.Text)
-        elems = T.split (== ' ') tval
+extractComplexFieldConstraint :: Text -> Value -> Parser FieldConstraint
+extractComplexFieldConstraint "unique" _ = return Unique
+extractComplexFieldConstraint "pk" _ = return Pk
+extractComplexFieldConstraint "fk" (String t) = let
+        elems = T.split (== ' ') t
     in case elems of
-        (tname : fname : []) -> Right $ Fk tname fname
-        _                    -> Left "invalid fk definition"
-extractComplexFieldConstraint "check" (Scalar val _ _ _) = Right . Other $ TE.decodeUtf8 val
-extractComplexFieldConstraint _    _ = Left "invalid field constraint"
+        (tname : fname : []) -> return $ Fk tname fname
+        _                    -> fail "invalid fk definition"
+extractComplexFieldConstraint "check" (String t) = return $ Other t
+extractComplexFieldConstraint _    _ = fail "invalid field constraint"
 
+extractTableConstraint :: Text -> Value -> Parser TableConstraint
+extractTableConstraint "__pk"     (Array v)   =  flip TableConstraint Pk . V.toList <$> traverse extractFieldName v
+extractTableConstraint "__pk"     (String t) = return $ TableConstraint [ t ] Pk
+extractTableConstraint "__pk"     _                 = fail "invalid primary key constraint"
+extractTableConstraint "__unique" (Array v)   = flip TableConstraint Unique . V.toList <$> traverse extractFieldName v
+extractTableConstraint "__unique" (String t) = return $ TableConstraint [ t ] Unique
+extractTableConstraint "__unique" _                 = fail "invalid unicity constraint"
+extractTableConstraint "__check"  (String t) = return $ TableConstraint [] $ Other t
+extractTableConstraint _          _                 = fail "invalid table constraint"
+
+
+-- * Auxiliary parsers
+extractScalar :: Value -> Parser Text
+extractScalar (String t) = return t
+extractScalar x          = typeMismatch "not a scalar" x
+
+extractScalarPairs :: HashMap Text Value -> Parser (HashMap Text Text)
+extractScalarPairs = traverse extractScalar
+
+extractFieldName :: Value -> Parser FieldName
+extractFieldName (String t) = return t
+extractFieldName x          = typeMismatch "not a scalar" x

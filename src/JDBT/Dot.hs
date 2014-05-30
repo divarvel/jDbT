@@ -10,8 +10,8 @@ import qualified Data.Text     as T
 
 import           JDBT.Types
 
-dataToDot :: [Type] -> T.Text
-dataToDot ts = let
+dataToDot :: Schema -> T.Text
+dataToDot (Schema ts) = let
     prefix = "digraph G {\n graph [ rankdir =\"TB\" ]"
     suffix = "\n}\n\n"
     in prefix <> foldMap typeToDot ts <> dataDepsToDot ts <> suffix

@@ -3,6 +3,8 @@ module JDBT.Types where
 
 import qualified Data.Text       as T
 
+newtype Schema = Schema [Type]
+
 type TableName = T.Text
 type FieldName = T.Text
 
@@ -15,6 +17,7 @@ data FieldConstraint = NotNull
 
 data TableConstraint = TableConstraint [FieldName] FieldConstraint
                      deriving (Show)
+
 
 data Type = Tb Table
           | En DbEnum
@@ -44,3 +47,9 @@ isTablePk (TableConstraint _ c) = isPk c
 isFk :: FieldConstraint -> Bool
 isFk (Fk _ _) = True
 isFk _        = False
+
+hasPrimaryKey :: [Field] -> [TableConstraint] -> Bool
+hasPrimaryKey fields constraints = let
+    fieldFk = any isPkField fields
+    tableFk = any isTablePk constraints
+    in fieldFk || tableFk
