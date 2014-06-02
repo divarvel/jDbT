@@ -15,7 +15,6 @@ import           Data.Traversable    (traverse)
 import           Data.Vector         (Vector)
 import qualified Data.Vector         as V
 import           Data.Yaml
-import           Data.Aeson.Types (typeMismatch)
 
 import           JDBT.Types
 
@@ -25,12 +24,12 @@ instance FromJSON Schema where
 -- * Top Parsers
 extractTypes :: Value -> Parser [Type]
 extractTypes (Object o) = H.elems <$> H.traverseWithKey extractType o
-extractTypes x = typeMismatch "object" x
+extractTypes _ = fail "Wrong top-level element, extexcted an Object"
 
 extractType :: Text -> Value -> Parser Type
 extractType name (Object o) = Tb <$> extractTable name o
 extractType name (Array a) = En <$> extractEnum name a
-extractType _ x = typeMismatch "object or array" x
+extractType _ _ = fail "Wrong element, expected Object or Array"
 
 -- ** Enumerations
 extractEnum :: Text -> Vector Value -> Parser DbEnum
@@ -56,7 +55,7 @@ extractTable name vs = let
 extractField :: Text -> Value -> Parser Field
 extractField name (String t) = extractSimpleField name t
 extractField name (Object o) = extractComplexField name o
-extractField name x = typeMismatch ("invalid value for field " <> T.unpack name) x
+extractField name _ = fail ("invalid value for field " <> T.unpack name <> "expected String or Object")
 
 extractSimpleField :: Text -> Text -> Parser Field
 extractSimpleField name ftype =
@@ -121,11 +120,11 @@ extractTableConstraint _          _                 = fail "invalid table constr
 -- * Auxiliary parsers
 extractScalar :: Value -> Parser Text
 extractScalar (String t) = return t
-extractScalar x          = typeMismatch "not a scalar" x
+extractScalar _          = fail "Expected a String"
 
 extractScalarPairs :: HashMap Text Value -> Parser (HashMap Text Text)
 extractScalarPairs = traverse extractScalar
 
 extractFieldName :: Value -> Parser FieldName
 extractFieldName (String t) = return t
-extractFieldName x          = typeMismatch "not a scalar" x
+extractFieldName _          = fail "Expected a String"

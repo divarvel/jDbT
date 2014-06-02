@@ -18,5 +18,4 @@ Executable jdbt
                     unordered-containers >= 0.2,
                     vector >= 0.10,
                     optparse-applicative >= 0.7,
-                    aeson >= 0.7,
                     yaml >= 0.8
