@@ -19,3 +19,17 @@ Executable jdbt
                     vector >= 0.10,
                     optparse-applicative >= 0.7,
                     yaml >= 0.8
+
+Executable jdbt-api
+  Ghc-Options:    -Wall
+  main-is:             Api.hs
+  hs-source-dirs:      src
+  build-depends:    base >= 4,
+                    text >= 1,
+                    bytestring >= 0.10,
+                    time >= 1.4,
+                    unordered-containers >= 0.2,
+                    vector >= 0.10,
+                    optparse-applicative >= 0.7,
+                    yaml >= 0.8,
+                    quickwebapp >= 2.0.1
