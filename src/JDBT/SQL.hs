@@ -12,8 +12,8 @@ import           JDBT.Types
 --------------------------------------------------------------------------------
 -- Data to SQL
 --
-dataToSQL :: [Type] -> T.Text
-dataToSQL = foldMap typeToSQL
+dataToSQL :: Schema -> T.Text
+dataToSQL (Schema t) = foldMap typeToSQL t
 
 typeToSQL :: Type -> T.Text
 typeToSQL (Tb t) = tableToSQL t
