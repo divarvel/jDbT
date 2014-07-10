@@ -5,7 +5,7 @@ import           Data.Yaml
 import           System.Environment (getArgs)
 
 import           JDBT.Dot
-import           JDBT.Parser ()
+import           JDBT.Parser        ()
 import           JDBT.SQL
 
 main :: IO ()

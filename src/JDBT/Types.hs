@@ -1,18 +1,18 @@
 
 module JDBT.Types where
 
-import qualified Data.Text       as T
+import           Data.Text (Text)
 
 newtype Schema = Schema [Type]
 
-type TableName = T.Text
-type FieldName = T.Text
+type TableName = Text
+type FieldName = Text
 
 data FieldConstraint = NotNull
                      | Pk
                      | Fk TableName FieldName
                      | Unique
-                     | Other T.Text
+                     | Other Text
                      deriving (Show)
 
 data TableConstraint = TableConstraint [FieldName] FieldConstraint
@@ -23,13 +23,13 @@ data Type = Tb Table
           | En DbEnum
           deriving (Show)
 
-data DbEnum = DbEnum T.Text [T.Text]
+data DbEnum = DbEnum Text [Text]
             deriving (Show)
 
 data Table = Table TableName [Field] [TableConstraint]
            deriving (Show)
 
-data Field = Field FieldName T.Text (Maybe T.Text) [FieldConstraint]
+data Field = Field FieldName Text (Maybe Text) [FieldConstraint]
            deriving (Show)
 
 
