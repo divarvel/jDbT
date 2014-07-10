@@ -4,7 +4,7 @@
 module JDBT.Parser where
 
 import           Control.Applicative
-import           Data.Char           (isAlpha)
+import           Data.Char           (isAlphaNum)
 import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as H
 import           Data.Maybe          (catMaybes)
@@ -54,12 +54,13 @@ extractTable name vs = let
 -- *** Fields
 extractField :: Text -> Value -> Parser Field
 extractField name (String t) = extractSimpleField name t
+extractField name (Null) = extractSimpleField name "uuid"
 extractField name (Object o) = extractComplexField name o
 extractField name _ = fail ("invalid value for field " <> T.unpack name <> "expected String or Object")
 
 extractSimpleField :: Text -> Text -> Parser Field
 extractSimpleField name ftype =
-    let (modifiers,realName) = T.break (not . isAlpha) name
+    let (modifiers,realName) = T.break (\c -> isAlphaNum c || '_' ==c) name
         constraints = inferFieldConstraints modifiers realName
         isReference = any isFk constraints
         values = T.splitOn "|" ftype
