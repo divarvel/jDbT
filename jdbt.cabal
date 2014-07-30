@@ -1,11 +1,16 @@
 name:                jdbt
-version:             0.0.0.1
+version:             0.0.0.2
 synopsis:            DB helper
 license:             GPL-3
 author:              Clément Delafargue
 maintainer:          clement@delafargue.name
 build-type:          Simple
 cabal-version:       >=1.6
+
+flag Api
+    description: Build an API frontend
+    default: False
+
 
 Executable jdbt
   Ghc-Options:    -Wall
@@ -19,3 +24,21 @@ Executable jdbt
                     vector >= 0.10,
                     optparse-applicative >= 0.7,
                     yaml >= 0.8
+
+Executable jdbt-api
+  Ghc-Options:    -Wall
+  main-is:             Api.hs
+  hs-source-dirs:      src
+  if flag(api)
+    buildable: True
+  else
+    buildable: False
+  build-depends:    base >= 4,
+                    text >= 1,
+                    bytestring >= 0.10,
+                    time >= 1.4,
+                    unordered-containers >= 0.2,
+                    vector >= 0.10,
+                    optparse-applicative >= 0.7,
+                    yaml >= 0.8,
+                    quickwebapp >= 2.1
