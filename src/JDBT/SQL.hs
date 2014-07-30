@@ -56,5 +56,5 @@ fieldConstraintToSQL Pk = "primary key"
 fieldConstraintToSQL NotNull = "not null"
 fieldConstraintToSQL (Fk table field)  = "references " <> table <>"(" <> field <> ")"
 fieldConstraintToSQL Unique = "unique"
-fieldConstraintToSQL (Other t) = "check " <> t
+fieldConstraintToSQL (Other t) = "check (" <> t <> ")"
 
