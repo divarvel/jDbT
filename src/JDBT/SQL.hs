@@ -3,6 +3,7 @@
 module JDBT.SQL where
 
 import           Data.Foldable (foldMap)
+import           Data.Maybe (mapMaybe)
 import           Data.Monoid   ((<>))
 import qualified Data.Text     as T
 
@@ -13,7 +14,10 @@ import           JDBT.Types
 -- Data to SQL
 --
 dataToSQL :: Schema -> T.Text
-dataToSQL (Schema t) = foldMap typeToSQL t
+dataToSQL s@(Schema t) = let
+    types = foldMap typeToSQL t
+    deferredConstraints = foldMap fkToSql . collectAllFks $ tables s
+    in types <> "\n" <> deferredConstraints
 
 typeToSQL :: Type -> T.Text
 typeToSQL (Tb t) = tableToSQL t
@@ -39,6 +43,23 @@ tableToSQL (Table n fs cs) = let
     suffix = "\n);\n\n"
     in prefix <> (T.intercalate ",\n" $ indent allLines) <> suffix
 
+
+collectTableFkS :: Table -> [(TableName, FieldName, TableName, FieldName)]
+collectTableFkS (Table tn fs _) = let
+    getFk (Fk table field) = Just (table, field)
+    getFk _ = Nothing
+    makeQuad fn (x, y) = (tn, fn, x, y)
+    fieldFks (Field fn _ _ cs) = fmap (makeQuad fn) $ mapMaybe getFk cs
+    in fs >>= fieldFks
+
+collectAllFks :: [Table] -> [(TableName, FieldName, TableName, FieldName)]
+collectAllFks = (>>= collectTableFkS)
+
+fkToSql :: (TableName, FieldName, TableName, FieldName) -> T.Text
+fkToSql (fromTable, fromField, toTable, toField) = 
+  "alter table only \n" <> fromTable <> " add constraint " <> toTable <> "_" <> toField <> "_fkey " <>
+  "foreign key (" <> fromField <> ") references " <> toTable <> "(" <> toField <> ");\n"
+
 tableConstraintToSQL :: Int -> TableConstraint -> T.Text
 tableConstraintToSQL _ (TableConstraint fs Pk) = "primary key ("<> T.intercalate ", " fs <>")"
 tableConstraintToSQL _ (TableConstraint fs Unique) = "unique ("<> T.intercalate ", " fs <>")"
@@ -54,7 +75,8 @@ fieldToSQL (Field n t d cst) = let
 fieldConstraintToSQL :: FieldConstraint -> T.Text
 fieldConstraintToSQL Pk = "primary key"
 fieldConstraintToSQL NotNull = "not null"
-fieldConstraintToSQL (Fk table field)  = "references " <> table <>"(" <> field <> ")"
+--fieldConstraintToSQL (Fk table field)  = "references " <> table <>"(" <> field <> ")"
+fieldConstraintToSQL (Fk _ _)  = ""
 fieldConstraintToSQL Unique = "unique"
 fieldConstraintToSQL (Other t) = "check " <> t
 

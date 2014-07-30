@@ -1,6 +1,7 @@
 
 module JDBT.Types where
 
+import           Data.Maybe (mapMaybe)
 import           Data.Text (Text)
 
 newtype Schema = Schema [Type]
@@ -33,6 +34,11 @@ data Field = Field FieldName Text (Maybe Text) [FieldConstraint]
            deriving (Show)
 
 
+tables :: Schema -> [Table]
+tables (Schema ts) = mapMaybe getTable ts
+  where
+    getTable (Tb t) = Just t
+    getTable _ = Nothing
 
 isPk :: FieldConstraint -> Bool
 isPk Pk = True
