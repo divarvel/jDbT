@@ -72,10 +72,11 @@ extractSimpleField name ftype =
 
 
 inferFieldConstraints :: Text -> T.Text -> [FieldConstraint]
-inferFieldConstraints modifiers name = catMaybes [ notNull, unique, fk ]
+inferFieldConstraints modifiers name = catMaybes [ notNull, unique, fk, index ]
     where
         notNull = if "?" `T.isInfixOf` modifiers then Nothing else Just NotNull
         unique  = if "+" `T.isInfixOf` modifiers then Just Unique else Nothing
+        index   = if "=" `T.isInfixOf` modifiers then Just Index else Nothing
         fk      = if "_id" `T.isSuffixOf` name then
             let f_table = T.take (T.length name - 3) name
             in Just $ Fk f_table name
@@ -98,6 +99,7 @@ extractComplexFieldConstraints _              = fail "invalid field constraints"
 
 extractComplexFieldConstraint :: Text -> Value -> Parser FieldConstraint
 extractComplexFieldConstraint "unique" _ = return Unique
+extractComplexFieldConstraint "index" _ = return Index
 extractComplexFieldConstraint "pk" _ = return Pk
 extractComplexFieldConstraint "fk" (String t) = let
         elems = T.split (== ' ') t
@@ -113,6 +115,8 @@ extractTableConstraint "__pk"     (String t) = return $ TableConstraint [ t ] Pk
 extractTableConstraint "__pk"     _                 = fail "invalid primary key constraint"
 extractTableConstraint "__unique" (Array v)   = flip TableConstraint Unique . V.toList <$> traverse extractFieldName v
 extractTableConstraint "__unique" (String t) = return $ TableConstraint [ t ] Unique
+extractTableConstraint "__index" (Array v)   = flip TableConstraint Index . V.toList <$> traverse extractFieldName v
+extractTableConstraint "__index" (String t) = return $ TableConstraint [ t ] Index
 extractTableConstraint "__unique" _                 = fail "invalid unicity constraint"
 extractTableConstraint "__check"  (String t) = return $ TableConstraint [] $ Other t
 extractTableConstraint _          _                 = fail "invalid table constraint"

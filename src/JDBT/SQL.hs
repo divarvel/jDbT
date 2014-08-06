@@ -78,5 +78,6 @@ fieldConstraintToSQL NotNull = "not null"
 --fieldConstraintToSQL (Fk table field)  = "references " <> table <>"(" <> field <> ")"
 fieldConstraintToSQL (Fk _ _)  = ""
 fieldConstraintToSQL Unique = "unique"
+fieldConstraintToSQL Index = "index"
 fieldConstraintToSQL (Other t) = "check " <> t
 

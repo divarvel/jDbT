@@ -13,6 +13,7 @@ data FieldConstraint = NotNull
                      | Pk
                      | Fk TableName FieldName
                      | Unique
+                     | Index
                      | Other Text
                      deriving (Show)
 

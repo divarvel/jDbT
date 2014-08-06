@@ -24,7 +24,7 @@ post:
 member:
   firstname: text
   lastname: text
-  nickname: text
+  =nickname: text
   ?team_id:
   address_id:
   status: status | 'Test'
