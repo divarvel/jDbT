@@ -1,0 +1,10 @@
+[__defaults]
+autoPk = true
+pkType = "uuid"
+
+
+simple_enum = [ "value1", "value2" ]
+
+[simple_table]
+?field = "text"
+field = "timestamptz | now()"
