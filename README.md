@@ -1,6 +1,6 @@
 # jinx Database Tools
 
-iDbT is a small utility designed to quickly generate SQL schemas and
+jDbT is a small utility designed to quickly generate SQL schemas and
 associated information from a lightweight spec.
 
 ## TL;DR
@@ -137,7 +137,7 @@ ToDo: allow the overriding of these conventions:
 
 #### SQL
 
-Right now only postgresql is supported. Are there any other RDBMSs out there
+Right now only PostgreSQL is supported. Are there any other RDBMSs out there
 anyway?
 
 #### Dot
