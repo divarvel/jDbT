@@ -1,4 +1,4 @@
-FROM divarvel/archlinux-haskell:latest
+FROM haskell:7.10
 
 RUN /usr/bin/useradd -m deploy
 
