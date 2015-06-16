@@ -6,6 +6,7 @@ author:              Clément Delafargue
 maintainer:          clement@delafargue.name
 build-type:          Simple
 cabal-version:       >=1.6
+data-files:   data/index.html
 
 flag Api
     description: Build an API frontend
@@ -41,4 +42,4 @@ Executable jdbt-api
                     vector >= 0.10,
                     optparse-applicative >= 0.7,
                     yaml >= 0.8,
-                    quickwebapp >= 2.1
+                    scotty >= 0.9
