@@ -1,11 +1,12 @@
 name:                jdbt
-version:             0.0.0.2
+version:             0.1.0
 synopsis:            DB helper
 license:             GPL-3
 author:              Clément Delafargue
 maintainer:          clement@delafargue.name
 build-type:          Simple
 cabal-version:       >=1.6
+extra-source-files:  README.md CONTRIBUTING.md CHANGELOG.md
 data-files:   data/index.html
 
 flag Api
