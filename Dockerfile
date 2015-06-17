@@ -1,22 +1,15 @@
 FROM haskell:7.10
 
-RUN /usr/bin/useradd -m deploy
+RUN cabal update
 
-ADD . /home/deploy/jdbt
+ADD ./jdbt.cabal /opt/jdbt/jdbt.cabal
+RUN cd /opt/jdbt && cabal install -j4 --only-dependencies
 
-RUN chown -R deploy:deploy /home/deploy/jdbt
+ADD . /opt/jdbt
+RUN cd /opt/jdbt && cabal configure -fapi && cabal build
 
-ENV LANG en_US.UTF-8
-ENV LC_ALL en_US.UTF-8
-
-USER deploy
-ENV HOME /home/deploy
-WORKDIR /home/deploy/jdbt
-
-RUN cabal update && cabal sandbox init
-RUN cabal install -j4 --only-dependencies
-RUN cabal configure -fapi && cabal build
+ENV PATH /root/.cabal/bin:$PATH
 
 EXPOSE 8080
 
-ENTRYPOINT ["/home/deploy/jdbt/dist/build/jdbt-api/jdbt-api"]
+CMD ["./dist/build/jdbt-api/jdbt-api"]
