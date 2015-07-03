@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
--- import Control.Applicative
+import Control.Applicative
 -- import           Data.Maybe
 import qualified Data.Text.Lazy          as T
 -- import qualified Data.Text.Encoding as T

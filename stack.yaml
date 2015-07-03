@@ -1,0 +1,6 @@
+flags:
+  jdbt:
+    Api: true
+packages:
+- .
+resolver: lts-2.9

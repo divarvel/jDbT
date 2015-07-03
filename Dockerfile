@@ -1,15 +1,12 @@
-FROM haskell:7.10
+FROM fpco/stack-build:latest
 
-RUN cabal update
-
-ADD ./jdbt.cabal /opt/jdbt/jdbt.cabal
-RUN cd /opt/jdbt && cabal install -j4 --only-dependencies
-
+RUN mkdir -p /opt/jdbt
 ADD . /opt/jdbt
-RUN cd /opt/jdbt && cabal configure -fapi && cabal build
 
-ENV PATH /root/.cabal/bin:$PATH
+WORKDIR /opt/jdbt
+
+RUN stack build
 
 EXPOSE 8080
 
-CMD ["./dist/build/jdbt-api/jdbt-api"]
+ENTRYPOINT ["stack exec -- jdbt-api"]
