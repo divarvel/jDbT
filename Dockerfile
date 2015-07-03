@@ -5,6 +5,10 @@ ADD . /opt/jdbt
 
 WORKDIR /opt/jdbt
 
+RUN stack setup
+
+RUN stack build --only-snapshot
+
 RUN stack build
 
 EXPOSE 8080
