@@ -104,7 +104,7 @@ extractComplexFieldConstraint "fk" (String t) = let
     in case elems of
         (tname : fname : []) -> return $ Fk tname fname
         _                    -> fail "invalid fk definition"
-extractComplexFieldConstraint "not null" (String t) = return NotNull
+extractComplexFieldConstraint "notnull" _ = return NotNull
 extractComplexFieldConstraint "check" (String t) = return $ Other t
 extractComplexFieldConstraint _    _ = fail "invalid field constraint"
 
