@@ -50,7 +50,7 @@ post_tag:
     jdbt ./schema.yml > schema.sql
     jdbt ./schema.yml dot | dot -Tpng -o schema.png
     # or
-    curl --data-binary @schema.yml http://jdbt-api.cleverapps.io/
+    curl -F "schema=<schema.yml" http://jdbt.cleverapps.io/
 
 
 `schema.sql`
