@@ -112,7 +112,7 @@ create table post_tag (
 
     cabal sandbox init
     cabal install
-    cp .cabal-sandbox/dist/bin/jdbt ~/.local/bin
+    cp .cabal-sandbox/bin/jdbt ~/.local/lib
 
 ## Use
 
