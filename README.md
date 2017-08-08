@@ -110,9 +110,9 @@ create table post_tag (
 
 ## Install
 
-    cabal sandbox init
-    cabal install
-    cp .cabal-sandbox/dist/bin/jdbt ~/.local/bin
+    stack setup
+    stack build
+    stack install
 
 ## Use
 
@@ -165,4 +165,4 @@ ToDo
 
 jDbT was originally a python script put together by @clementd, @ahoy\_jon and
 @benjaminvialle for contract work. @clementd rewrote it from scratch in
-Haskell after a few years
+Haskell after a few years.
