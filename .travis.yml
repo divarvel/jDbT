@@ -1,3 +1,21 @@
-language: haskell
+sudo: false
+
+# Caching so the next build will be fast too.
+cache:
+  directories:
+  - $HOME/.stack
+
+before_install:
+  # Download and unpack the stack executable
+  - mkdir -p ~/.local/bin
+  - export PATH=$HOME/.local/bin:$PATH
+  - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+
+install:
+  - travis_wait stack --no-terminal --skip-ghc-check setup
+
+script:
+  - stack --no-terminal --skip-ghc-check build
+
 notifications:
   email: false
