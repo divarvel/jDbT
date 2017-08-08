@@ -1,4 +1,5 @@
 sudo: false
+language: c
 
 # Caching so the next build will be fast too.
 cache:
@@ -11,11 +12,8 @@ before_install:
   - export PATH=$HOME/.local/bin:$PATH
   - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
 
-install:
-  - travis_wait stack --no-terminal --skip-ghc-check setup
-
 script:
-  - stack --no-terminal --skip-ghc-check build
+  - stack --no-terminal --install-ghc build
 
 notifications:
   email: false
