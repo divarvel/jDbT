@@ -28,7 +28,7 @@ Executable jdbt
                     yaml >= 0.8
 
 Executable jdbt-api
-  Ghc-Options:    -Wall
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-T -Wall
   main-is:             Api.hs
   hs-source-dirs:      src
   if flag(api)
@@ -43,4 +43,7 @@ Executable jdbt-api
                     vector >= 0.10,
                     optparse-applicative >= 0.7,
                     yaml >= 0.8,
+                    ekg-core,
+                    ekg-statsd,
+                    wai-middleware-metrics,
                     scotty >= 0.9
