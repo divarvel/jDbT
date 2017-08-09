@@ -3,4 +3,6 @@ flags:
     Api: true
 packages:
 - .
-resolver: lts-2.9
+nix:
+  packages: [zlib]
+resolver: lts-9.0

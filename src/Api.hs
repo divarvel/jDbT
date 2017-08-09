@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Control.Applicative
+-- import Control.Applicative
 -- import           Data.Maybe
 import qualified Data.Text.Lazy          as T
 -- import qualified Data.Text.Encoding as T
@@ -9,6 +9,9 @@ import qualified Data.Text.Lazy.IO       as TL
 import qualified Data.ByteString.Lazy as BL
 import           Data.Yaml
 import           System.Environment
+import Network.Wai.Metrics (metrics, registerWaiMetrics)
+import System.Metrics (newStore, registerGcMetrics)
+import System.Remote.Monitoring.Statsd (defaultStatsdOptions, forkStatsd)
 
 import           Web.Scotty
 
@@ -27,7 +30,12 @@ main :: IO ()
 main = do
   port <- maybe 8080 read <$> lookupEnv "PORT"
   home <- TL.readFile =<< getDataFileName "data/index.html"
+  store <- newStore
+  registerGcMetrics store
+  waiMetrics <- registerWaiMetrics store
+  _ <- forkStatsd defaultStatsdOptions store
   scotty port $ do
+    middleware $ metrics waiMetrics
     get "/" $ html home
     post "/" $ do
       schema <- decodeEither . BL.toStrict <$> param "schema"
